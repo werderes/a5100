@@ -2,7 +2,7 @@ import give_camera
 import serial
 import time
 
-arduino = serial.Serial('/dev/ttyACM0', 115200)
+arduino = serial.Serial('Com4', 115200)
 camera = give_camera.give_camera()
 
 def slide(steps):
