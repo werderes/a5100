@@ -1,7 +1,4 @@
 import json
-# from urllib.request import urlopen
-import urllib
-from time import sleep
 import urequests
 
 QX_ADDR='http://192.168.122.1:8080'
