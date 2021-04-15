@@ -49,11 +49,13 @@ def take_photos():
 
     s.power_on()
     s.revolution((-spacing/2)/revolution_to_len)
+    time.sleep(.3)
     shot()
-    time.sleep(.1)
+
     s.revolution((spacing) / revolution_to_len)
+    time.sleep(.3)
     shot()
-    time.sleep(.1)
+
     s.revolution((-spacing/2)/revolution_to_len)
     s.power_off()
 
@@ -63,5 +65,5 @@ s = Stepper(14,12,5)
 pin = machine.Pin(13, machine.Pin.IN)
 start()
 while True:
-    if pin.value():
+    if not pin.value():
         take_photos()
