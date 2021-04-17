@@ -14,7 +14,7 @@ params = {
 }
 url = QX_ADDR + "/sony/camera"
 revolution_to_len = 40
-spacing = 63
+spacing = 64
 
 def start():
 
@@ -48,16 +48,23 @@ def do_connect():
 def take_photos():
 
     s.power_on()
+    print("power on")
     s.revolution((-spacing/2)/revolution_to_len)
-    time.sleep(.3)
-    shot()
+    print("left position")
 
+    shot()
+    print("shot 1 taken")
+    time.sleep(.1)
     s.revolution((spacing) / revolution_to_len)
-    time.sleep(.3)
+    print("right position")
     shot()
+    print("shot 1 taken")
+    time.sleep(.1)
 
     s.revolution((-spacing/2)/revolution_to_len)
+    print("center position")
     s.power_off()
+    print("power off")
 
 
 do_connect()
