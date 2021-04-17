@@ -15,22 +15,24 @@ params = {
 url = QX_ADDR + "/sony/camera"
 revolution_to_len = 40
 spacing = 64
+json_dump = json.dumps(params)
+json_dump_bytes = bytearray(json_dump, 'utf8')
 
 def start():
 
     params["method"] = "startRecMode"
     json_dump = json.dumps(params)
     json_dump_bytes = bytearray(json_dump, 'utf8')
-    urequests.request(method = "POST", url=url, data=json_dump_bytes)
-
+    r = urequests.request(method = "POST", url=url, data=json_dump_bytes)
+    r.close()
 
 def shot():
 
     params["method"] = "actTakePicture"
     json_dump = json.dumps(params)
     json_dump_bytes = bytearray(json_dump, 'utf8')
-    urequests.request(method="POST", url=url, data=json_dump_bytes)
-
+    r = urequests.request(method="POST", url=url, data=json_dump_bytes)
+    r. close()
 
 def do_connect():
 
