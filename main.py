@@ -120,13 +120,24 @@ class Stepper:
         else:
             self.step_time = us
 
+def do_connect():
 
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    if not wlan.isconnected():
+        print('connecting to network...')
+        #wlan.connect('UPC0886495', 'GTJHQCTR')
+        wlan.connect('DIRECT-OEE0:ILCE-5100', 'iHjAg5rD')
+        while not wlan.isconnected():
+            pass
+    print('network config:', wlan.ifconfig())
 
 s = Stepper(14,12,5)
 pin = machine.Pin(13, machine.Pin.IN)
 start()
 
 if pin.value():
+    do_connect()
     while True:
         if not pin.value():
          take_photos()

@@ -1,22 +1,33 @@
 import network
-def do_connect():
 
-    wlan = network.WLAN(network.STA_IF)
-    wlan.active(True)
-    if not wlan.isconnected():
-        print('connecting to network...')
-        #wlan.connect('UPC0886495', 'GTJHQCTR')
-        wlan.connect('DIRECT-OEE0:ILCE-5100', 'iHjAg5rD')
-        while not wlan.isconnected():
-            pass
-    print('network config:', wlan.ifconfig())
     
 
 def do_accespoint():
+    try:
+        import usocket as socket
+    except:
+        import socket
+
+    import network
+
+    import esp
+    esp.osdebug(None)
+
+    import gc
+    gc.collect()
+
+    ssid = 'Jezus'
+    password = 'Genowefa'
+
     ap = network.WLAN(network.AP_IF)
     ap.active(True)
-    ap.config(essid = 'Jezus')
+    ap.config(essid=ssid, password=password)
+
+    while ap.active() == False:
+        pass
+
+    print('Connection successful')
+    print(ap.ifconfig())
 
 
 do_accespoint()
-do_connect()
