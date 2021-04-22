@@ -37,6 +37,17 @@ def shot():
     r = urequests.request(method="POST", url=url, data=json_dump_bytes)
     r. close()
 
+def do_connect():
+
+    wlan = network.WLAN(network.STA_IF)
+    wlan.active(True)
+    if not wlan.isconnected():
+        print('connecting to network...')
+        #wlan.connect('UPC0886495', 'GTJHQCTR')
+        wlan.connect('DIRECT-OEE0:ILCE-5100', 'iHjAg5rD')
+        while not wlan.isconnected():
+            pass
+    print('network config:', wlan.ifconfig())
 
 
 def take_photos():
@@ -121,12 +132,10 @@ class Stepper:
             self.step_time = us
 
 
-
+do_connect()
 s = Stepper(14,12,5)
 pin = machine.Pin(13, machine.Pin.IN)
 start()
-
-if pin.value():
-    while True:
-        if not pin.value():
-         take_photos()
+while True:
+    if not pin.value():
+        take_photos()
