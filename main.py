@@ -134,10 +134,15 @@ def do_connect():
 
 s = Stepper(14,12,5)
 pin = machine.Pin(13, machine.Pin.IN)
-start()
+print("stepper 14,12,5")
+print("button 13")
 
 if pin.value():
+    print("start loop")
     do_connect()
+    start()
     while True:
         if not pin.value():
          take_photos()
+else:
+    print("configuration mode")
