@@ -1,5 +1,5 @@
 import network
-import webrepl
+
     
 
 def do_accespoint():
@@ -19,10 +19,11 @@ def do_accespoint():
     ssid = 'Jezus'
     password = 'Genowefa'
     wlan = network.WLAN(network.STA_IF)
-    wlan.active(False)
+    wlan.active(True)
     ap = network.WLAN(network.AP_IF)
     ap.active(True)
-    ap.config(essid=ssid, password=password, channel=5)
+    ap.config(essid=ssid, password=password)
+
     while ap.active() == False:
         pass
 
