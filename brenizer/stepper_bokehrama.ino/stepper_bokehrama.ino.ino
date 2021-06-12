@@ -6,6 +6,8 @@
 #include <ESP8266WiFiMulti.h>
 #include <ArduinoOTA.h>
 #include <WiFiUdp.h>
+#include <ESP8266HTTPClient.h>
+
 
 ESP8266WiFiMulti wifiMulti;     // Create an instance of the ESP8266WiFiMulti class, called 'wifiMulti'
 WiFiUDP Udp;
@@ -14,13 +16,15 @@ char incomingPacket[255];  // buffer for incoming packets
 char  replyPacket[] = "Hi there! Got the message :-)";  // a reply string to send back
 
 
-#define dirXPin 16
-#define stepXPin 14
-#define dirYPin 5
-#define stepYPin 4
-#define enableXPin 12
-#define enableYPin 2
+#define dirYPin 16
+#define stepYPin 14
+#define dirXPin 5
+#define stepXPin 4
+#define enableYPin 12
+#define enableXPin 2
 #define motorInterfaceType 1
+
+const byte interruptPin = 13;
 
 #ifndef STASSID
 #define STASSID "Jezus"
@@ -30,22 +34,52 @@ char  replyPacket[] = "Hi there! Got the message :-)";  // a reply string to sen
 const char* ssid = STASSID;
 const char* password = STAPSK;
 
-  
+const char* ssid_sony = "Sony";
+const char* password_sony = "sonysony";
+const char* adress_sony = "http://192.168.122.1:8080/sony/camera";
+
 int fromSerial = 0;
+int buttonState = LOW;
+int prevButtonState = LOW;
+unsigned long previousMillis = 0;
+unsigned long currentMillis = 0;
+
+int shotSequence[][2] = {{1,1},{2,1},{2,2},{1,2},{0,2},{0,1},{0,0},{1,0},{2,0},{3,0},{3,1},{3,2},{3,3},{3,2},{3,1},{3,0}};
+int SPRX = 1600;
+int SPRY = 1036;
+float angleX = 6;
+float angleY = 8;
+
+bool shooting = 0;
 
 AccelStepper stepperX = AccelStepper(motorInterfaceType, stepXPin, dirXPin);
 AccelStepper stepperY = AccelStepper(motorInterfaceType, stepYPin, dirYPin);
+
+DynamicJsonDocument doc(2048);
+
+void ICACHE_RAM_ATTR handleInterrupt();
 
 void setup() {
   pinMode(enableXPin, OUTPUT);
   pinMode(enableYPin, OUTPUT);
   digitalWrite(enableXPin, HIGH);
   digitalWrite(enableYPin, HIGH);
+  pinMode(interruptPin, INPUT_PULLUP);
+  currentMillis = millis();
+  previousMillis = currentMillis;
+
+  attachInterrupt(digitalPinToInterrupt(interruptPin), handleInterrupt, RISING);
+  StaticJsonDocument<3> arr;
+  doc["method"] = "";
+  doc["params"] = arr;
+  doc["id"] = 1;
+  doc["version"] = "1.0";
+  
   Serial.begin(115200);
     delay(10);
   Serial.println('\n');
-
   wifiMulti.addAP(ssid, password);   // add Wi-Fi networks you want to connect to
+  wifiMulti.addAP(ssid_sony, password_sony);   // add Wi-Fi networks you want to connect to
   
   Serial.println("Connecting ...");
   int i = 0;
@@ -84,8 +118,8 @@ void setup() {
   delay(1000);
   stepperX.stop();
   stepperX.setCurrentPosition(0);
-  stepperX.setMaxSpeed(360);
-  stepperX.setAcceleration(200);
+  stepperX.setMaxSpeed(3200);
+  stepperX.setAcceleration(600);
   stepperY.stop();
   stepperY.setCurrentPosition(0);
   stepperY.setMaxSpeed(3200);
@@ -168,10 +202,54 @@ void listenUdpInput() {
 }
 
 void runStepper() {
-  if (stepperY.distanceToGo() != 0) {
-    stepperY.run();
+  if (stepperX.distanceToGo() != 0) {
+    stepperX.run();
   } else {
-    stepperY.stop();
-    digitalWrite(enableYPin, HIGH);
+    stepperX.stop();
+    digitalWrite(enableXPin, HIGH);
   }
 }
+/*
+void handleInterrupt() {
+  Serial.println("interrupted!");
+  moveStepper(200);
+}*/
+
+void start_camera(){
+
+  
+  doc["method"] = "startRecMode";
+  String json;
+  serializeJson(doc, json);
+/*
+  HTTPClient http;
+
+  // Send request
+  http.begin(adress_sony);
+  http.POST(json);
+
+  // Read response
+  Serial.print(http.getString());
+
+  // Disconnect
+  http.end();
+  */
+  }
+
+void handleInterrupt(){  
+  currentMillis = millis();
+  if((currentMillis-previousMillis>100)&&(digitalRead(interruptPin)==HIGH)){
+  Serial.println("shot sequence!");
+  previousMillis = currentMillis;
+  shooting = 1;
+  shoot();
+    
+  }   
+  }
+void shoot(){
+  int l = sizeof(shotSequence);
+  int n = 0;
+  
+  
+  
+  }  

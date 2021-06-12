@@ -6,9 +6,6 @@ import time
 from machine import Pin
 from time import sleep_us
 
-
-
-
 QX_ADDR='http://192.168.122.1:8080'
 params = {
     "method": "",
