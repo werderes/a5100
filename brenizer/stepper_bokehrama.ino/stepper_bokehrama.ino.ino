@@ -6,8 +6,7 @@
 #include <ESP8266WiFiMulti.h>
 #include <ArduinoOTA.h>
 #include <WiFiUdp.h>
-#include <ESP8266HTTPClient.h>
-
+#include <ArduinoHttpClient.h>
 
 ESP8266WiFiMulti wifiMulti;     // Create an instance of the ESP8266WiFiMulti class, called 'wifiMulti'
 WiFiUDP Udp;
@@ -44,14 +43,20 @@ int prevButtonState = LOW;
 unsigned long previousMillis = 0;
 unsigned long currentMillis = 0;
 
-int shotSequence[][2] = {{1,1},{2,1},{2,2},{1,2},{0,2},{0,1},{0,0},{1,0},{2,0},{3,0},{3,1},{3,2},{3,3},{3,2},{3,1},{3,0}};
+int shotSequence[][2] = {{1, 1}, {2, 1}, {2, 2}, {1, 2}, {0, 2}, {0, 1}, {0, 0}, {1, 0}, {2, 0}, {3, 0}, {3, 1}, {3, 2}, {3, 3}, {3, 2}, {3, 1}, {3, 0}};
 int SPRX = 1600;
-int SPRY = 1036;
-float angleX = 6;
+int SPRY = 1000;
+float angleX = 16;
 float angleY = 8;
-
+int numberOfSteps = sizeof(shotSequence) / 8                ;
+int currentStep = 0;
 bool shooting = 0;
-
+bool movingX = 0;
+bool movingY = 0;
+int pauseOne = 500;
+int pauseTwo = 500;
+int x = 0;
+int y = 0;
 AccelStepper stepperX = AccelStepper(motorInterfaceType, stepXPin, dirXPin);
 AccelStepper stepperY = AccelStepper(motorInterfaceType, stepYPin, dirYPin);
 
@@ -74,13 +79,14 @@ void setup() {
   doc["params"] = arr;
   doc["id"] = 1;
   doc["version"] = "1.0";
-  
+
   Serial.begin(115200);
-    delay(10);
+  delay(10);
   Serial.println('\n');
+
   wifiMulti.addAP(ssid, password);   // add Wi-Fi networks you want to connect to
   wifiMulti.addAP(ssid_sony, password_sony);   // add Wi-Fi networks you want to connect to
-  
+
   Serial.println("Connecting ...");
   int i = 0;
   while (wifiMulti.run() != WL_CONNECTED) { // Wait for the Wi-Fi to connect
@@ -92,7 +98,7 @@ void setup() {
   Serial.println(WiFi.SSID());              // Tell us what network we're connected to
   Serial.print("IP address:\t");
   Serial.println(WiFi.localIP());           // Send the IP address of the ESP8266 to the computer
-  
+
   ArduinoOTA.setHostname("Maryja");
   ArduinoOTA.setPassword("Genowefa42");
 
@@ -126,7 +132,7 @@ void setup() {
   stepperY.setAcceleration(600);
 
   WiFi.mode(WIFI_AP_STA);
- //WiFi.disconnect();
+  //WiFi.disconnect();
   delay(100);
 
   IPAddress localIp(192, 168, 0, 1);
@@ -142,28 +148,34 @@ void setup() {
   delay(500);
   Serial.printf("Now listening at IP %s, UDP port %d\n", WiFi.localIP().toString().c_str(), localUdpPort);
 
-  
+
 }
 
 void loop() {
   ArduinoOTA.handle();
   listenInput();
   listenUdpInput();
-  runStepper();
+  if (shooting) {
+    shootSequence();
+  }
 }
 
-void moveStepper(int a) {
+void moveStepperY(int a) {
   digitalWrite(enableYPin, LOW);
   stepperY.setCurrentPosition(0);
   stepperY.moveTo(a);
 }
-
+void moveStepperX(int a) {
+  digitalWrite(enableXPin, LOW);
+  stepperX.setCurrentPosition(0);
+  stepperX.moveTo(a);
+}
 void listenInput() {
   while (Serial.available() > 0) {
     fromSerial = Serial.parseInt();
 
     if (fromSerial) {
-      moveStepper(fromSerial);
+      moveStepperY(fromSerial);
       Serial.println("ok");
       fromSerial = 0;
     }
@@ -189,7 +201,8 @@ void listenUdpInput() {
     Udp.endPacket();
     int steps = String(incomingPacket).toInt();
     Serial.print(steps);
-    moveStepper(steps);
+    //moveStepperY(steps);
+    shootSequence();
   }
   /* while (Serial.available() > 0) {
      fromSerial = Serial.parseInt();
@@ -206,50 +219,107 @@ void runStepper() {
     stepperX.run();
   } else {
     stepperX.stop();
-    digitalWrite(enableXPin, HIGH);
+    movingX = 0;
+    //digitalWrite(enableXPin, HIGH);
+  }
+  if (stepperY.distanceToGo() != 0) {
+    stepperY.run();
+  } else {
+    stepperY.stop();
+    movingY = 0;
+    //digitalWrite(enableXPin, HIGH);
   }
 }
 /*
-void handleInterrupt() {
+  void handleInterrupt() {
   Serial.println("interrupted!");
   moveStepper(200);
-}*/
+  }*/
 
-void start_camera(){
+void start_camera() {
 
-  
+
   doc["method"] = "startRecMode";
   String json;
   serializeJson(doc, json);
-/*
-  HTTPClient http;
+  
+    HTTPClient http;
 
-  // Send request
-  http.begin(adress_sony);
-  http.POST(json);
+    // Send request
+    http.begin(adress_sony);
+    http.POST(json);
 
-  // Read response
-  Serial.print(http.getString());
+    // Read response
+    Serial.print(http.getString());
 
-  // Disconnect
-  http.end();
-  */
-  }
+    // Disconnect
+    http.end();
+  
+}
 
-void handleInterrupt(){  
+void handleInterrupt() {
   currentMillis = millis();
-  if((currentMillis-previousMillis>100)&&(digitalRead(interruptPin)==HIGH)){
-  Serial.println("shot sequence!");
-  previousMillis = currentMillis;
-  shooting = 1;
-  shoot();
-    
-  }   
+  if ((currentMillis - previousMillis > 100) && (digitalRead(interruptPin) == HIGH)) {
+    previousMillis = currentMillis;
+    if (!shooting) {
+      
+      shooting = 1;
+    } else {
+      shooting = 0;
+    }
   }
-void shoot(){
-  int l = sizeof(shotSequence);
-  int n = 0;
-  
-  
-  
-  }  
+}
+
+void shootSequence() {
+  for (int n = 0; n < numberOfSteps; n++) {
+    if (shooting) {
+      Serial.print("step number:");
+      Serial.println(n);
+      shoot();
+      delay(pauseOne);
+      x = (shotSequence[(n + 1) % (numberOfSteps)][0] - shotSequence[n % (numberOfSteps)][0]) * floor(angleX * SPRX / 360);
+      moveStepperX(x);
+      Serial.print("x steps:");
+      Serial.println(x);
+      y = (shotSequence[(n + 1) % (numberOfSteps)][1] - shotSequence[n % (numberOfSteps)][1]) * floor(angleY * SPRY / 360);
+      moveStepperY(y);
+      Serial.print("y steps:");
+      Serial.println(y);
+      Serial.println(" ");
+      movingX = 1;
+      movingY = 1;
+      while (movingX || movingY) {
+        runStepper();
+      }
+      delay(pauseTwo);
+    } else {
+      Serial.println("break");
+      x = (shotSequence[0][0] - shotSequence[n % (numberOfSteps)][0]) * floor(angleX * SPRX / 360);
+      moveStepperX(x);
+      Serial.print("x steps:");
+      Serial.println(x);
+      y = (shotSequence[0][1] - shotSequence[n % (numberOfSteps)][1]) * floor(angleY * SPRY / 360);
+      moveStepperY(y);
+      Serial.print("y steps:");
+      Serial.println(y);
+      Serial.println(" ");
+      movingX = 1;
+      movingY = 1;
+      while (movingX || movingY) {
+        runStepper();
+      }
+      delay(pauseTwo);
+      shooting = 0;
+      
+      break;
+    }
+    
+  }
+  digitalWrite(enableXPin, HIGH);
+  digitalWrite(enableYPin, HIGH);
+  Serial.println("end of shooting!");
+  shooting = 0;
+}
+void shoot() {
+  Serial.println("shot!!");
+}
