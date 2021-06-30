@@ -1,19 +1,23 @@
+#include <ESP8266HTTPClient.h>
 
-//#include <Stepper.h>
+#include <ESP8266WiFi.h>
+#include <WiFiUdp.h>
 #include <ArduinoJson.h>
 #include <AccelStepper.h>
-#include <ESP8266WiFi.h>
-#include <ESP8266WiFiMulti.h>
+/*#include <ESP8266WiFiMulti.h>
+*/
 #include <ArduinoOTA.h>
-#include <WiFiUdp.h>
-#include <ArduinoHttpClient.h>
+#include <Arduino_JSON.h>
 
-ESP8266WiFiMulti wifiMulti;     // Create an instance of the ESP8266WiFiMulti class, called 'wifiMulti'
+
+
+//ESP8266WiFiMulti wifiMulti;     // Create an instance of the ESP8266WiFiMulti class, called 'wifiMulti'
 WiFiUDP Udp;
 unsigned int localUdpPort = 4210;  // local port to listen on
 char incomingPacket[255];  // buffer for incoming packets
 char  replyPacket[] = "Hi there! Got the message :-)";  // a reply string to send back
-
+HTTPClient http;
+WiFiClient client;
 
 #define dirYPin 16
 #define stepYPin 14
@@ -22,26 +26,32 @@ char  replyPacket[] = "Hi there! Got the message :-)";  // a reply string to sen
 #define enableYPin 12
 #define enableXPin 2
 #define motorInterfaceType 1
-
+#define DEBUG 1
 const byte interruptPin = 13;
 
 #ifndef STASSID
-#define STASSID "Jezus"
-#define STAPSK  "Genowefa42"
+#define STASSID "DIRECT-OEE0:ILCE-5100"
+#define STAPSK  "iHjAg5rD"
 #endif
+
 
 const char* ssid = STASSID;
 const char* password = STAPSK;
 
-const char* ssid_sony = "Sony";
-const char* password_sony = "sonysony";
-const char* adress_sony = "http://192.168.122.1:8080/sony/camera";
+const char* ssid_sony = "DIRECT-OEE0:ILCE-5100";
+const char* password_sony = "iHjAg5rD";
+const char* adress_sony = "http://192.168.122.1:8080/sony/camera/";
+const char* host = "192.168.122.1";   // fixed IP of camera
+const int httpPort = 8080;
+
+#define SERVER_IP "192.168.122.1"
 
 int fromSerial = 0;
 int buttonState = LOW;
 int prevButtonState = LOW;
 unsigned long previousMillis = 0;
 unsigned long currentMillis = 0;
+unsigned long lastmillis;
 
 int shotSequence[][2] = {{1, 1}, {2, 1}, {2, 2}, {1, 2}, {0, 2}, {0, 1}, {0, 0}, {1, 0}, {2, 0}, {3, 0}, {3, 1}, {3, 2}, {3, 3}, {3, 2}, {3, 1}, {3, 0}};
 int SPRX = 1600;
@@ -53,12 +63,18 @@ int currentStep = 0;
 bool shooting = 0;
 bool movingX = 0;
 bool movingY = 0;
-int pauseOne = 500;
-int pauseTwo = 500;
+int pauseOne = 1100;
+int pauseTwo = 200;
 int x = 0;
 int y = 0;
 AccelStepper stepperX = AccelStepper(motorInterfaceType, stepXPin, dirXPin);
 AccelStepper stepperY = AccelStepper(motorInterfaceType, stepYPin, dirYPin);
+
+char JSON_1[] = "{\"version\":\"1.0\",\"id\":1,\"method\":\"getVersions\",\"params\":[false]}";
+char JSON_2[] = "{\"version\":\"1.0\",\"id\":1,\"method\":\"startRecMode\",\"params\":[]}";
+char JSON_3[] = "{\"version\":\"1.0\",\"id\":1,\"method\":\"startLiveview\",\"params\":[]}";
+char JSON_4[] = "{\"version\":\"1.0\",\"id\":1,\"method\":\"stopLiveview\",\"params\":[]}";
+char JSON_5[] = "{\"version\":\"1.0\",\"id\":1,\"method\":\"actTakePicture\",\"params\":[]}";
 
 DynamicJsonDocument doc(2048);
 
@@ -74,9 +90,8 @@ void setup() {
   previousMillis = currentMillis;
 
   attachInterrupt(digitalPinToInterrupt(interruptPin), handleInterrupt, RISING);
-  StaticJsonDocument<3> arr;
-  doc["method"] = "";
-  doc["params"] = arr;
+  JsonArray data = doc.createNestedArray("params");
+  doc["method"] = "startRecMode";
   doc["id"] = 1;
   doc["version"] = "1.0";
 
@@ -84,12 +99,13 @@ void setup() {
   delay(10);
   Serial.println('\n');
 
-  wifiMulti.addAP(ssid, password);   // add Wi-Fi networks you want to connect to
-  wifiMulti.addAP(ssid_sony, password_sony);   // add Wi-Fi networks you want to connect to
-
+  //wifiMulti.addAP(ssid, password);   // add Wi-Fi networks you want to connect to
+  //wifiMulti.addAP(ssid_sony, password_sony);   // add Wi-Fi networks you want to connect to
+  WiFi.begin(STASSID, STAPSK);
   Serial.println("Connecting ...");
   int i = 0;
-  while (wifiMulti.run() != WL_CONNECTED) { // Wait for the Wi-Fi to connect
+  //while (wifiMulti.run() != WL_CONNECTED) { // Wait for the Wi-Fi to connect
+  while (WiFi.status() != WL_CONNECTED) { // Wait for the Wi-Fi to connect
     delay(250);
     Serial.print('.');
   }
@@ -98,7 +114,8 @@ void setup() {
   Serial.println(WiFi.SSID());              // Tell us what network we're connected to
   Serial.print("IP address:\t");
   Serial.println(WiFi.localIP());           // Send the IP address of the ESP8266 to the computer
-
+  delay(1000);
+  start_camera();
   ArduinoOTA.setHostname("Maryja");
   ArduinoOTA.setPassword("Genowefa42");
 
@@ -124,8 +141,8 @@ void setup() {
   delay(1000);
   stepperX.stop();
   stepperX.setCurrentPosition(0);
-  stepperX.setMaxSpeed(3200);
-  stepperX.setAcceleration(600);
+  stepperX.setMaxSpeed(800);
+  stepperX.setAcceleration(300);
   stepperY.stop();
   stepperY.setCurrentPosition(0);
   stepperY.setMaxSpeed(3200);
@@ -238,23 +255,9 @@ void runStepper() {
 
 void start_camera() {
 
-
-  doc["method"] = "startRecMode";
-  String json;
-  serializeJson(doc, json);
-  
-    HTTPClient http;
-
-    // Send request
-    http.begin(adress_sony);
-    http.POST(json);
-
-    // Read response
-    Serial.print(http.getString());
-
-    // Disconnect
-    http.end();
-  
+  Serial.print("try to start camera");
+  httpPost(JSON_1);  // initial connect to camera
+  httpPost(JSON_2);  
 }
 
 void handleInterrupt() {
@@ -275,7 +278,7 @@ void shootSequence() {
     if (shooting) {
       Serial.print("step number:");
       Serial.println(n);
-      shoot();
+      //shoot();
       delay(pauseOne);
       x = (shotSequence[(n + 1) % (numberOfSteps)][0] - shotSequence[n % (numberOfSteps)][0]) * floor(angleX * SPRX / 360);
       moveStepperX(x);
@@ -320,6 +323,54 @@ void shootSequence() {
   Serial.println("end of shooting!");
   shooting = 0;
 }
+
 void shoot() {
   Serial.println("shot!!");
+  httpPost(JSON_5); 
+}
+
+void httpPost(char* jString) {
+      if (DEBUG) {Serial.print("Msg send: ");Serial.println(jString);}
+  Serial.print("connecting to ");
+  Serial.println(host);
+  if (!client.connect(host, httpPort)) {
+    Serial.println("connection failed");
+    return;
+  }
+  else {
+    Serial.print("connected to ");
+    Serial.print(host);
+    Serial.print(":");
+    Serial.println(httpPort);
+  }
+ 
+  // We now create a URI for the request
+  String url = "/sony/camera";
+ 
+  Serial.print("Requesting URL: ");
+  Serial.println(url);
+ 
+  // This will send the request to the server
+  client.print(String("POST " + url + " HTTP/1.1\r\n" + "Host: " + host + "\r\n"));
+  client.println("Content-Type: application/json");
+  client.print("Content-Length: ");
+  client.println(strlen(jString));
+  // End of headers
+  client.println();
+  // Request body
+  client.println(jString);
+  /*Serial.println("wait for data");
+  lastmillis = millis();
+  while (!client.available() && millis() - lastmillis < 8000) {} // wait 8s max for answer
+ 
+  // Read all the lines of the reply from server and print them to Serial
+  while (client.available()) {
+    String line = client.readStringUntil('\r');
+    Serial.print(line);
+  }
+  */
+  Serial.println();
+  Serial.println("----closing connection----");
+  Serial.println();
+  client.stop();
 }
