@@ -9,8 +9,6 @@
 #include <ArduinoOTA.h>
 #include <Arduino_JSON.h>
 
-
-
 //ESP8266WiFiMulti wifiMulti;     // Create an instance of the ESP8266WiFiMulti class, called 'wifiMulti'
 WiFiUDP Udp;
 unsigned int localUdpPort = 4210;  // local port to listen on
@@ -53,12 +51,16 @@ unsigned long previousMillis = 0;
 unsigned long currentMillis = 0;
 unsigned long lastmillis;
 
-int shotSequence[][2] = {{1, 1}, {2, 1}, {2, 2}, {1, 2}, {0, 2}, {0, 1}, {0, 0}, {1, 0}, {2, 0}, {3, 0}, {3, 1}, {3, 2}, {3, 3}, {3, 2}, {3, 1}, {3, 0}};
-int SPRX = 1600;
-int SPRY = 1000;
-float angleX = 16;
-float angleY = 8;
-int numberOfSteps = sizeof(shotSequence) / 8                ;
+int shotSequence[][2] = {{2,1},{3,1},{3,2},{2,2},{1,2},{1,1},{1,0},{2,0},{3,0},{4,0},{4,1},{4,2},{4,3},{3,3},{2,3},{1,3},{0,3},{0,2},{0,1},{0,0}};
+int SPRX = 4144;
+int SPRY = 1036;
+int maxSpeedX = 3200;
+int maxSpeedY = 1600;
+int accelerationX = 900;
+int accelerationY = 600;
+float angleX = 8;
+float angleY = 10;
+int numberOfSteps = sizeof(shotSequence) / 8;
 int currentStep = 0;
 bool shooting = 0;
 bool movingX = 0;
@@ -98,9 +100,21 @@ void setup() {
   Serial.begin(115200);
   delay(10);
   Serial.println('\n');
+  WiFi.mode(WIFI_AP_STA);
+  //WiFi.disconnect();
+  delay(100);
 
+  IPAddress localIp(192, 168, 0, 1);
+  IPAddress gateway(192, 168, 0, 1);
+  IPAddress subnet(255, 255, 255, 0);
+
+  WiFi.softAPConfig(localIp, gateway, subnet);
+  WiFi.softAP("Lenin", "Genowefa42");
+  delay(100);
+  Serial.println();
   //wifiMulti.addAP(ssid, password);   // add Wi-Fi networks you want to connect to
   //wifiMulti.addAP(ssid_sony, password_sony);   // add Wi-Fi networks you want to connect to
+  
   WiFi.begin(STASSID, STAPSK);
   Serial.println("Connecting ...");
   int i = 0;
@@ -114,6 +128,7 @@ void setup() {
   Serial.println(WiFi.SSID());              // Tell us what network we're connected to
   Serial.print("IP address:\t");
   Serial.println(WiFi.localIP());           // Send the IP address of the ESP8266 to the computer
+  
   delay(1000);
   start_camera();
   ArduinoOTA.setHostname("Maryja");
@@ -141,25 +156,14 @@ void setup() {
   delay(1000);
   stepperX.stop();
   stepperX.setCurrentPosition(0);
-  stepperX.setMaxSpeed(800);
-  stepperX.setAcceleration(300);
+  stepperX.setMaxSpeed(maxSpeedX);
+  stepperX.setAcceleration(accelerationX);
   stepperY.stop();
   stepperY.setCurrentPosition(0);
-  stepperY.setMaxSpeed(3200);
-  stepperY.setAcceleration(600);
+  stepperY.setMaxSpeed(maxSpeedY);
+  stepperY.setAcceleration(accelerationY);
 
-  WiFi.mode(WIFI_AP_STA);
-  //WiFi.disconnect();
-  delay(100);
 
-  IPAddress localIp(192, 168, 0, 1);
-  IPAddress gateway(192, 168, 0, 1);
-  IPAddress subnet(255, 255, 255, 0);
-
-  WiFi.softAPConfig(localIp, gateway, subnet);
-  WiFi.softAP("Lenin", "Genowefa42");
-  delay(100);
-  Serial.println();
 
   Udp.begin(localUdpPort);
   delay(500);
@@ -278,13 +282,13 @@ void shootSequence() {
     if (shooting) {
       Serial.print("step number:");
       Serial.println(n);
-      //shoot();
+      shoot();
       delay(pauseOne);
       x = (shotSequence[(n + 1) % (numberOfSteps)][0] - shotSequence[n % (numberOfSteps)][0]) * floor(angleX * SPRX / 360);
       moveStepperX(x);
       Serial.print("x steps:");
       Serial.println(x);
-      y = (shotSequence[(n + 1) % (numberOfSteps)][1] - shotSequence[n % (numberOfSteps)][1]) * floor(angleY * SPRY / 360);
+      y = -(shotSequence[(n + 1) % (numberOfSteps)][1] - shotSequence[n % (numberOfSteps)][1]) * floor(angleY * SPRY / 360);
       moveStepperY(y);
       Serial.print("y steps:");
       Serial.println(y);
