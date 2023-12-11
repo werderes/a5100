@@ -51,7 +51,7 @@ unsigned long previousMillis = 0;
 unsigned long currentMillis = 0;
 unsigned long lastmillis;
 
-int shotSequence[][2] = {{2,1},{3,1},{3,2},{2,2},{1,2},{1,1},{1,0},{2,0},{3,0},{4,0},{4,1},{4,2},{4,3},{3,3},{2,3},{1,3},{0,3},{0,2},{0,1},{0,0}};
+int shotSequence[][2] = {{2, 1}, {3, 1}, {3, 2}, {2, 2}, {1, 2}, {1, 1}, {1, 0}, {2, 0}, {3, 0}, {4, 0}, {4, 1}, {4, 2}, {4, 3}, {3, 3}, {2, 3}, {1, 3}, {0, 3}, {0, 2}, {0, 1}, {0, 0}};
 int SPRX = 4144;
 int SPRY = 1036;
 int maxSpeedX = 3200;
@@ -114,7 +114,7 @@ void setup() {
   Serial.println();
   //wifiMulti.addAP(ssid, password);   // add Wi-Fi networks you want to connect to
   //wifiMulti.addAP(ssid_sony, password_sony);   // add Wi-Fi networks you want to connect to
-  
+
   WiFi.begin(STASSID, STAPSK);
   Serial.println("Connecting ...");
   int i = 0;
@@ -128,7 +128,7 @@ void setup() {
   Serial.println(WiFi.SSID());              // Tell us what network we're connected to
   Serial.print("IP address:\t");
   Serial.println(WiFi.localIP());           // Send the IP address of the ESP8266 to the computer
-  
+
   delay(1000);
   start_camera();
   ArduinoOTA.setHostname("Maryja");
@@ -261,7 +261,7 @@ void start_camera() {
 
   Serial.print("try to start camera");
   httpPost(JSON_1);  // initial connect to camera
-  httpPost(JSON_2);  
+  httpPost(JSON_2);
 }
 
 void handleInterrupt() {
@@ -269,7 +269,7 @@ void handleInterrupt() {
   if ((currentMillis - previousMillis > 100) && (digitalRead(interruptPin) == HIGH)) {
     previousMillis = currentMillis;
     if (!shooting) {
-      
+
       shooting = 1;
     } else {
       shooting = 0;
@@ -278,63 +278,84 @@ void handleInterrupt() {
 }
 
 void shootSequence() {
-  for (int n = 0; n < numberOfSteps; n++) {
-    if (shooting) {
-      Serial.print("step number:");
-      Serial.println(n);
-      shoot();
-      delay(pauseOne);
-      x = (shotSequence[(n + 1) % (numberOfSteps)][0] - shotSequence[n % (numberOfSteps)][0]) * floor(angleX * SPRX / 360);
-      moveStepperX(x);
-      Serial.print("x steps:");
-      Serial.println(x);
-      y = -(shotSequence[(n + 1) % (numberOfSteps)][1] - shotSequence[n % (numberOfSteps)][1]) * floor(angleY * SPRY / 360);
-      moveStepperY(y);
-      Serial.print("y steps:");
-      Serial.println(y);
-      Serial.println(" ");
-      movingX = 1;
-      movingY = 1;
-      while (movingX || movingY) {
-        runStepper();
-      }
-      delay(pauseTwo);
-    } else {
-      Serial.println("break");
-      x = (shotSequence[0][0] - shotSequence[n % (numberOfSteps)][0]) * floor(angleX * SPRX / 360);
-      moveStepperX(x);
-      Serial.print("x steps:");
-      Serial.println(x);
-      y = (shotSequence[0][1] - shotSequence[n % (numberOfSteps)][1]) * floor(angleY * SPRY / 360);
-      moveStepperY(y);
-      Serial.print("y steps:");
-      Serial.println(y);
-      Serial.println(" ");
-      movingX = 1;
-      movingY = 1;
-      while (movingX || movingY) {
-        runStepper();
-      }
-      delay(pauseTwo);
-      shooting = 0;
-      
-      break;
-    }
-    
+
+  Serial.print("go right:");
+
+
+
+  x = 10 * floor(angleX * SPRX / 360);
+  moveStepperX(x);
+  Serial.print("x steps:");
+  Serial.println(x);
+  y = 3 * floor(angleY * SPRY / 360);
+  moveStepperY(y);
+  Serial.print("y steps:");
+  Serial.println(y);
+  Serial.println(" ");
+  movingX = 1;
+  movingY = 1;
+  while (movingX || movingY) {
+    runStepper();
   }
+  delay(pauseOne);
+  shoot();
+  delay(pauseTwo);
+  Serial.print("go left:");
+ 
+  x = -20 * floor(angleX * SPRX / 360);
+  moveStepperX(x);
+  Serial.print("x steps:");
+  Serial.println(x);
+  y = -6 * floor(angleY * SPRY / 360);
+  moveStepperY(y);
+  Serial.print("y steps:");
+  Serial.println(y);
+  Serial.println(" ");
+  movingX = 1;
+  movingY = 1;
+  while (movingX || movingY) {
+    runStepper();
+  }
+  delay(pauseOne);
+  shoot();
+  delay(pauseTwo);
+  x = 10 * floor(angleX * SPRX / 360);
+  moveStepperX(x);
+  Serial.print("x steps:");
+  Serial.println(x);
+  y = 3 * floor(angleY * SPRY / 360);
+  moveStepperY(y);
+  Serial.print("y steps:");
+  Serial.println(y);
+  Serial.println(" ");
+  movingX = 1;
+  movingY = 1;
+  while (movingX || movingY) {
+    runStepper();
+  }
+  delay(pauseOne);
+ 
+
+
+
+
   digitalWrite(enableXPin, HIGH);
   digitalWrite(enableYPin, HIGH);
   Serial.println("end of shooting!");
   shooting = 0;
 }
 
+
 void shoot() {
   Serial.println("shot!!");
-  httpPost(JSON_5); 
+  httpPost(JSON_5);
 }
 
 void httpPost(char* jString) {
-      if (DEBUG) {Serial.print("Msg send: ");Serial.println(jString);}
+  if (DEBUG) {
+    Serial.print("Msg send: ");
+    Serial.println(jString);
+  }
   Serial.print("connecting to ");
   Serial.println(host);
   if (!client.connect(host, httpPort)) {
@@ -347,13 +368,13 @@ void httpPost(char* jString) {
     Serial.print(":");
     Serial.println(httpPort);
   }
- 
+
   // We now create a URI for the request
   String url = "/sony/camera";
- 
+
   Serial.print("Requesting URL: ");
   Serial.println(url);
- 
+
   // This will send the request to the server
   client.print(String("POST " + url + " HTTP/1.1\r\n" + "Host: " + host + "\r\n"));
   client.println("Content-Type: application/json");
@@ -364,17 +385,17 @@ void httpPost(char* jString) {
   // Request body
   client.println(jString);
   /*Serial.println("wait for data");
-  lastmillis = millis();
-  while (!client.available() && millis() - lastmillis < 8000) {} // wait 8s max for answer
- 
-  // Read all the lines of the reply from server and print them to Serial
-  while (client.available()) {
+    lastmillis = millis();
+    while (!client.available() && millis() - lastmillis < 8000) {} // wait 8s max for answer
+
+    // Read all the lines of the reply from server and print them to Serial
+    while (client.available()) {
     String line = client.readStringUntil('\r');
     Serial.print(line);
-  }
+    }
   */
   Serial.println();
   Serial.println("----closing connection----");
   Serial.println();
-    client.stop();
-  }
+  client.stop();
+}
